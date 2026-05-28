@@ -17,7 +17,7 @@ fn main() -> Result<()> {
                 println!("Received {} bytes from {}", size, source);
 
                 let received_header = Header::from_bytes(buf[..12].try_into()?);
-                let recieved_question = Question::from_bytes(buf)?;
+                let question_vec = Question::from_bytes(&buf, received_header.qdcount)?;
                 let mut response = Vec::new();
 
                 let header = Header::new(
@@ -30,18 +30,21 @@ fn main() -> Result<()> {
                     0,
                     0,
                     if received_header.opcode == 0 { 0 } else { 4 },
-                    1,
-                    1,
+                    received_header.qdcount,
+                    received_header.qdcount,
                     0,
                     0,
                 );
                 response.extend(header.to_bytes());
 
-                let question = Question::new(recieved_question.name.clone(), 1, 1);
-                response.extend(question.to_bytes());
+                for question in &question_vec {
+                    response.extend(question.to_bytes());
+                }
 
-                let answer = Answer::new(recieved_question.name, 1, 1, 60, 4, vec![8, 8, 8, 8]);
-                response.extend(answer.to_bytes());
+                for question in question_vec {
+                    let answer = Answer::new(question.name, 1, 1, 60, 4, vec![8, 8, 8, 8]);
+                    response.extend(answer.to_bytes());
+                }
 
                 udp_socket
                     .send_to(&response, source)

@@ -7,10 +7,6 @@ pub struct Question {
 }
 
 impl Question {
-    pub fn new(name: Vec<u8>, type_: u16, class: u16) -> Self {
-        Self { name, type_, class }
-    }
-
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut result = Vec::new();
 
@@ -21,17 +17,62 @@ impl Question {
         result
     }
 
-    pub fn from_bytes(buf: [u8; 512]) -> Result<Self> {
-        let without_header: [u8; 500] = buf[12..].try_into()?;
+    pub fn from_bytes(buf: &[u8], qdcount: u16) -> Result<Vec<Question>> {
+        let mut question_vec = Vec::new();
+        let mut current_pos = 12;
 
-        let name_len = without_header
-            .iter()
-            .position(|&x| x == 0)
-            .context("missing 0")?;
-        let name = without_header[..name_len + 1].to_vec();
-        let type_ = u16::from_be_bytes(without_header[name_len + 1..name_len + 3].try_into()?);
-        let class = u16::from_be_bytes(without_header[name_len + 3..name_len + 5].try_into()?);
+        for _ in 0..qdcount {
+            let (name, next_pos) = parse_name(buf, current_pos)?;
+            let type_ = u16::from_be_bytes(buf[next_pos..next_pos + 2].try_into()?);
+            let class = u16::from_be_bytes(buf[next_pos + 2..next_pos + 4].try_into()?);
 
-        Ok(Self { name, type_, class })
+            question_vec.push(Self { name, type_, class });
+
+            current_pos = next_pos + 4;
+        }
+
+        Ok(question_vec)
     }
+}
+
+fn parse_name(buf: &[u8], start_pos: usize) -> Result<(Vec<u8>, usize)> {
+    let mut name_vec = Vec::new();
+    let mut current_pos = start_pos;
+    let mut next_pos = None;
+    let mut has_jumped = false;
+
+    loop {
+        let current_byte = buf[current_pos];
+        let is_pointer = current_byte & 0xC0 == 0xC0;
+
+        if current_byte == 0 {
+            name_vec.push(0);
+
+            if !has_jumped {
+                next_pos = Some(current_pos + 1);
+            }
+
+            break;
+        } else if is_pointer {
+            let pointer = u16::from_be_bytes(buf[current_pos..current_pos + 2].try_into()?);
+            let offset = pointer & 0x3FFF;
+
+            if !has_jumped {
+                next_pos = Some(current_pos + 2);
+            }
+
+            current_pos = offset as usize;
+            has_jumped = true;
+        } else {
+            let name_len = current_byte;
+            let label_name = &buf[current_pos + 1..current_pos + 1 + name_len as usize];
+
+            name_vec.push(name_len);
+            name_vec.extend_from_slice(label_name);
+
+            current_pos = current_pos + 1 + name_len as usize;
+        }
+    }
+
+    Ok((name_vec, next_pos.context("missing next position")?))
 }
