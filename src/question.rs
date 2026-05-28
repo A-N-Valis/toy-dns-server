@@ -35,7 +35,7 @@ impl Question {
     }
 }
 
-fn parse_name(buf: &[u8], start_pos: usize) -> Result<(Vec<u8>, usize)> {
+pub fn parse_name(buf: &[u8], start_pos: usize) -> Result<(Vec<u8>, usize)> {
     let mut name_vec = Vec::new();
     let mut current_pos = start_pos;
     let mut next_pos = None;
