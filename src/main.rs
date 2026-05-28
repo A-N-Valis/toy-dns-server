@@ -2,10 +2,12 @@ mod answer;
 mod header;
 mod question;
 
+use anyhow::Result;
+
 use crate::{answer::Answer, header::Header, question::Question};
 use std::net::UdpSocket;
 
-fn main() {
+fn main() -> Result<()> {
     let udp_socket = UdpSocket::bind("127.0.0.1:2053").expect("Failed to bind to address");
     let mut buf = [0; 512];
 
@@ -13,9 +15,25 @@ fn main() {
         match udp_socket.recv_from(&mut buf) {
             Ok((size, source)) => {
                 println!("Received {} bytes from {}", size, source);
+
+                let received_header = Header::from_bytes(buf[..12].try_into()?);
                 let mut response = Vec::new();
 
-                let header = Header::new(1234, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0);
+                let header = Header::new(
+                    received_header.id,
+                    1,
+                    received_header.opcode,
+                    0,
+                    0,
+                    received_header.rd,
+                    0,
+                    0,
+                    if received_header.opcode == 0 { 0 } else { 4 },
+                    1,
+                    1,
+                    0,
+                    0,
+                );
                 response.extend(header.to_bytes());
 
                 let question = Question::new("codecrafters.io".to_string(), 1, 1);
@@ -31,7 +49,7 @@ fn main() {
             }
             Err(e) => {
                 eprintln!("Error receiving data: {}", e);
-                break;
+                return Ok(());
             }
         }
     }
