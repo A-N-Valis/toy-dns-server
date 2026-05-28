@@ -1,7 +1,8 @@
+mod answer;
 mod header;
 mod question;
 
-use crate::{header::Header, question::Question};
+use crate::{answer::Answer, header::Header, question::Question};
 use std::net::UdpSocket;
 
 fn main() {
@@ -14,11 +15,15 @@ fn main() {
                 println!("Received {} bytes from {}", size, source);
                 let mut response = Vec::new();
 
-                let header = Header::new(1234, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0);
+                let header = Header::new(1234, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0);
                 response.extend(header.to_bytes());
 
                 let question = Question::new("codecrafters.io".to_string(), 1, 1);
                 response.extend(question.to_bytes());
+
+                let answer =
+                    Answer::new("codecrafters.io".to_string(), 1, 1, 60, 4, vec![8, 8, 8, 8]);
+                response.extend(answer.to_bytes());
 
                 udp_socket
                     .send_to(&response, source)
