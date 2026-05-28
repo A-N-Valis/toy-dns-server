@@ -17,6 +17,7 @@ fn main() -> Result<()> {
                 println!("Received {} bytes from {}", size, source);
 
                 let received_header = Header::from_bytes(buf[..12].try_into()?);
+                let recieved_question = Question::from_bytes(buf)?;
                 let mut response = Vec::new();
 
                 let header = Header::new(
@@ -36,11 +37,10 @@ fn main() -> Result<()> {
                 );
                 response.extend(header.to_bytes());
 
-                let question = Question::new("codecrafters.io".to_string(), 1, 1);
+                let question = Question::new(recieved_question.name.clone(), 1, 1);
                 response.extend(question.to_bytes());
 
-                let answer =
-                    Answer::new("codecrafters.io".to_string(), 1, 1, 60, 4, vec![8, 8, 8, 8]);
+                let answer = Answer::new(recieved_question.name, 1, 1, 60, 4, vec![8, 8, 8, 8]);
                 response.extend(answer.to_bytes());
 
                 udp_socket

@@ -1,16 +1,14 @@
+use anyhow::{Context, Result};
+
 pub struct Question {
-    name: Vec<u8>,
-    type_: u16,
-    class: u16,
+    pub name: Vec<u8>,
+    pub type_: u16,
+    pub class: u16,
 }
 
 impl Question {
-    pub fn new(name: String, type_: u16, class: u16) -> Self {
-        Self {
-            name: encode_name(name),
-            type_,
-            class,
-        }
+    pub fn new(name: Vec<u8>, type_: u16, class: u16) -> Self {
+        Self { name, type_, class }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -22,18 +20,18 @@ impl Question {
 
         result
     }
-}
 
-pub fn encode_name(name: String) -> Vec<u8> {
-    let name_vec = name.split(".").collect::<Vec<&str>>();
-    let mut encoded_name = Vec::new();
+    pub fn from_bytes(buf: [u8; 512]) -> Result<Self> {
+        let without_header: [u8; 500] = buf[12..].try_into()?;
 
-    for name in name_vec {
-        encoded_name.push(name.len() as u8);
-        encoded_name.extend(name.as_bytes());
+        let name_len = without_header
+            .iter()
+            .position(|&x| x == 0)
+            .context("missing 0")?;
+        let name = without_header[..name_len + 1].to_vec();
+        let type_ = u16::from_be_bytes(without_header[name_len + 1..name_len + 3].try_into()?);
+        let class = u16::from_be_bytes(without_header[name_len + 3..name_len + 5].try_into()?);
+
+        Ok(Self { name, type_, class })
     }
-
-    encoded_name.push(0);
-
-    encoded_name
 }
