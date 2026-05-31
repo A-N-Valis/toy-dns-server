@@ -87,11 +87,11 @@ impl Header {
         let qr = (flag1 >> 7) & 0b1;
         let opcode = (flag1 >> 3) & 0b1111;
         let aa = (flag1 >> 2) & 0b1;
-        let tc = (flag1 >> 1) & 0xb1;
-        let rd = flag1 & 0xb1;
+        let tc = (flag1 >> 1) & 0b1;
+        let rd = flag1 & 0b1;
 
         let flag2 = header_bytes[3];
-        let ra = (flag2 >> 7) & 0xb1;
+        let ra = (flag2 >> 7) & 0b1;
         let z = (flag2 >> 4) & 0b111;
         let rcode = flag2 & 0b111;
 
